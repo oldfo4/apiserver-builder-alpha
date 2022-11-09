@@ -3,11 +3,13 @@ package generators
 import (
 	"fmt"
 	"io"
-	"k8s.io/klog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
+
+	"k8s.io/klog"
 
 	"k8s.io/gengo/generator"
 )
@@ -35,7 +37,8 @@ func CreateAdmissionGenerator(apis *APIs, filename string, projectRootPath strin
 			}
 		}
 	}
-
+	sort.Strings(admissionKinds)
+	fmt.Println("the following kinds will generate admission", admissionKinds)
 	return &admissionGenerator{
 		generator.DefaultGen{OptionalName: filename},
 		projectRootPath,
@@ -71,7 +74,6 @@ func (d *admissionGenerator) Finalize(context *generator.Context, w io.Writer) e
 	if len(d.admissionKinds) == 0 {
 		return nil
 	}
-
 	temp := template.Must(template.New("admission-install-template").Parse(AdmissionsInstallTemplate))
 	return temp.Execute(w, &struct {
 		Admissions []string

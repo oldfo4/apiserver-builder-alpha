@@ -18,6 +18,7 @@ package generators
 
 import (
 	"io"
+	"sort"
 	"text/template"
 
 	"fmt"
@@ -27,16 +28,42 @@ import (
 
 type apiGenerator struct {
 	generator.DefaultGen
-	apis *APIs
+	apis *sortAPIs
+}
+
+type sortAPIs struct {
+	*APIs
+	ByVersion map[string][]string
 }
 
 var _ generator.Generator = &apiGenerator{}
 
 func CreateApisGenerator(apis *APIs, filename string) generator.Generator {
+	sortapis := sortAPIs{
+		apis,
+		sortGroupVersion(apis.Groups),
+	}
+
 	return &apiGenerator{
 		generator.DefaultGen{OptionalName: filename},
-		apis,
+		&sortapis,
 	}
+}
+
+// sortGroupVersion always sort the apis reverse, so the newest apis will be preferred
+func sortGroupVersion(groups map[string]*APIGroup) map[string][]string {
+	byVersion := make(map[string][]string)
+	for gName, g := range groups {
+		if _, ok := byVersion[gName]; !ok {
+			byVersion[gName] = []string{}
+		}
+		for version, _ := range g.Versions {
+			byVersion[gName] = append(byVersion[gName], version)
+		}
+		sort.Sort(sort.Reverse(sort.StringSlice(byVersion[gName])))
+	}
+	fmt.Println("Apis will be generate as the following priority", byVersion)
+	return byVersion
 }
 
 func (d *apiGenerator) Imports(c *generator.Context) []string {
@@ -96,8 +123,8 @@ var {{ $group.Group }}ApiGroup = builders.NewApiGroupBuilder(
 	"{{ $group.PkgPath}}").
 	WithUnVersionedApi({{ $group.Group }}.ApiVersion).
 	WithVersionedApis(
-		{{ range $version := $group.Versions -}}
-		{{ $group.Group }}{{ $version.Version }}.ApiVersion,
+		{{ range $version := (index $.ByVersion $group.Group) -}}
+		{{ $group.Group }}{{ $version }}.ApiVersion,
 		{{ end -}}
 	).
 	WithRootScopedKinds(
