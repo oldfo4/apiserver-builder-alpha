@@ -242,6 +242,9 @@ func (b *APIsBuilder) ParseAPIs() {
 
 			apiGroup.Versions[version] = apiVersion
 		}
+		if apiGroup.Group == "cnnf" {
+			fmt.Printf("cnnf apigroup = %#v\n", apiGroup)
+		}
 		b.ParseStructsAndAliases(apiGroup)
 		apis.Groups[group] = apiGroup
 	}
@@ -545,6 +548,24 @@ type GenUnversionedType struct {
 	Resource *APIResource
 }
 
+type ByAPIResourceName []GenUnversionedType
+
+func (b ByAPIResourceName) Less(i, j int) bool {
+	if b[i].Resource == nil {
+		return true
+	}
+	if b[j].Resource == nil {
+		return false
+	}
+	return b[i].Resource.Version <= b[j].Resource.Version
+}
+
+func (b ByAPIResourceName) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+func (b ByAPIResourceName) Len() int { return len(b) }
+
 func (b *APIsBuilder) ParseStructsAndAliases(apigroup *APIGroup) {
 	remaining := []GenUnversionedType{}
 	for _, version := range apigroup.Versions {
@@ -557,6 +578,8 @@ func (b *APIsBuilder) ParseStructsAndAliases(apigroup *APIGroup) {
 			remaining = append(remaining, GenUnversionedType{kind, nil})
 		}
 	}
+	// 确保最新的version的优先级最高，内部版本使用的是最新的version
+	sort.Sort(sort.Reverse(ByAPIResourceName(remaining)))
 
 	done := sets.String{}
 	for len(remaining) > 0 {

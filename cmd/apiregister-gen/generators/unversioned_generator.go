@@ -17,6 +17,7 @@ limitations under the License.
 package generators
 
 import (
+	"fmt"
 	"io"
 	"text/template"
 
@@ -68,6 +69,12 @@ func (d *unversionedGenerator) Finalize(context *generator.Context, w io.Writer)
 		}).Parse(UnversionedAPITemplate))
 
 	err := temp.Execute(w, d.apigroup)
+	for k, v := range d.apigroup.UnversionedResources {
+		if v.Group == "cnnf" {
+			fmt.Printf("key = %s\n", k)
+			fmt.Printf("v = %#v\n", v)
+		}
+	}
 	if err != nil {
 		return err
 	}
